@@ -23,9 +23,8 @@
     .fade-in{ animation: fadeSlide .45s ease both; }
 
     .ctrl{ height:44px }
-    .sheet{ position:fixed; left:0; right:0; bottom:-100%; background:rgba(255,255,255,0.92); backdrop-filter: blur(14px); border-top-left-radius:22px; border-top-right-radius:22px; box-shadow:0 -10px 30px rgba(0,0,0,.25); transition:bottom .35s ease; }
-    body.dark .sheet{ background:rgba(17,24,39,.92); }
-    .sheet.open{ bottom:0; }
+    .tag{ padding:.25rem .6rem; border-radius:9999px; font-size:.72rem; border:1px solid #ffffff22 }
+    body.light .tag{ border-color:#e5e7eb }
   </style>
 </head>
 <body class="dark min-h-screen transition-colors duration-300">
@@ -35,11 +34,14 @@
     <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
       🧵 RK KNIT FAB — <span class="text-sky-300 dark:text-sky-300 light:text-sky-700">Tubular Entry</span>
     </h1>
-    <button id="themeToggle" class="px-3 py-2 rounded-xl glass dark hover:bg-white/10 light:hover:bg-slate-200 text-sm">🌙 Dark</button>
+    <div class="flex items-center gap-2">
+      <a href="./records.html" class="px-3 py-2 rounded-xl glass dark hover:bg-white/10 light:hover:bg-slate-200 text-sm">📜 View Records</a>
+      <button id="themeToggle" class="px-3 py-2 rounded-xl glass dark hover:bg-white/10 light:hover:bg-slate-200 text-sm">🌙 Dark</button>
+    </div>
   </div>
 </header>
 
-<main class="max-w-6xl mx-auto px-4 pb-28">
+<main class="max-w-6xl mx-auto px-4 pb-24">
 
   <!-- DASHBOARD -->
   <section class="glass dark rounded-3xl p-4 sm:p-6 fade-in">
@@ -103,7 +105,7 @@
       </div>
       <div class="flex items-end gap-2">
         <button id="btnAddRow" class="w-full ctrl rounded-2xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold">Add to Batch</button>
-        <button id="btnClearRow" class="w-full ctrl rounded-2xl glass dark font-semibold">Clear</button>
+        <button id="btnResetRow" class="w-full ctrl rounded-2xl glass dark font-semibold">Clear</button>
       </div>
     </div>
 
@@ -117,330 +119,127 @@
     <div id="toast" class="hidden mt-3 px-4 py-3 rounded-xl text-sm font-semibold glass dark">Saved!</div>
   </section>
 
-  <!-- HISTORY -->
-  <section class="glass dark rounded-3xl p-5 sm:p-6 mt-4 fade-in">
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-lg font-semibold">📜 Records</h2>
-      <div class="flex items-center gap-2">
-        <input id="q" class="ctrl glass dark rounded-2xl px-3" placeholder="Search item / colour / lot"/>
-        <button id="btnRefresh" class="ctrl px-3 rounded-2xl glass dark font-semibold">Refresh</button>
-      </div>
-    </div>
-    <div id="records" class="grid gap-2"></div>
-    <div id="loader" class="hidden mt-3 flex items-center gap-2 opacity-80">
-      <svg class="ico-gear" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Z" stroke="currentColor" stroke-width="1.8"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2M17 7l-1.4 1.4M8.4 16.6 7 18M7 7l1.4 1.4M16.6 16.6 18 18" stroke="currentColor" stroke-width="1.8"/></svg>
-      <span>Loading…</span>
-    </div>
-  </section>
-
 </main>
-
-<!-- FAB -->
-<button id="fab" class="fixed right-4 bottom-24 sm:bottom-10 rounded-full w-14 h-14 bg-sky-500 hover:bg-sky-400 text-slate-900 text-2xl shadow-xl">＋</button>
-
-<!-- EDIT SHEET -->
-<div id="editSheet" class="sheet p-4">
-  <div class="max-w-3xl mx-auto">
-    <div class="flex items-center justify-between mb-2">
-      <div class="text-lg font-semibold">✏️ Edit Record</div>
-      <button id="btnCloseSheet" class="px-3 py-1 rounded-lg glass dark">Close</button>
-    </div>
-    <div class="grid sm:grid-cols-2 gap-3">
-      <input id="eUser"   class="ctrl w-full glass dark rounded-2xl px-3" placeholder="User"/>
-      <input id="eLot"    class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Lot No"/>
-      <input id="eItem"   class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Item"/>
-      <input id="eColour" class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Colour"/>
-      <input id="eQty"    type="number" class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Qty"/>
-      <input id="eBag"    class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Bag Size"/>
-      <input id="eBagKg"  type="number" class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Bag Qty (kg)"/>
-    </div>
-    <div class="mt-3 flex gap-2">
-      <button id="btnSaveEdit" class="flex-1 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold py-3">Save</button>
-      <button id="btnDeleteRow" class="flex-1 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-semibold py-3">Delete</button>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ===== CONFIG ===== */
-const API = 'https://script.google.com/macros/s/AKfycbzpNNZbdznf953yIf9j4D5UhLhCfXVgVVjcupqEeQDZ5LIq_OKcKPdqEt9xz63gO9GN/exec'; // paste your /exec URL
+const API = 'https://script.google.com/macros/s/AKfycbzpNNZbdznf953yIf9j4D5UhLhCfXVgVVjcupqEeQDZ5LIq_OKcKPdqEt9xz63gO9GN/exec'; // /exec URL
 
 /* ===== THEME ===== */
-const body = document.body, btnTheme = document.getElementById('themeToggle');
+const body=document.body, btnTheme=document.getElementById('themeToggle');
 function applyTheme(t){
   body.classList.remove('dark','light'); body.classList.add(t);
   document.querySelectorAll('.glass').forEach(el=>{ el.classList.remove('dark','light'); el.classList.add(t); });
   btnTheme.textContent = t==='dark' ? '🌙 Dark' : '☀️ Light';
-  localStorage.setItem('theme', t);
+  localStorage.setItem('theme',t);
 }
 applyTheme(localStorage.getItem('theme') || 'dark');
 btnTheme.addEventListener('click', ()=> applyTheme(body.classList.contains('dark') ? 'light' : 'dark'));
 
 /* ===== STATE ===== */
-let masters = { items:[], colours:[], users:[], bagPairs:[] };
-let batch = [];
-let records = [];
-let metaHeaders = [];
-let headerMap = {};
-let editing = { id:null, record:{} };
+let masters={ items:[], colours:[], users:[], bagPairs:[] };
+let batch=[];
+let records=[];
+let metaHeaders=[], headerMap={};
 
 /* ===== UTIL ===== */
-const $ = s=>document.querySelector(s);
-const byId = id=>document.getElementById(id);
-const toast = (msg, ok=true)=>{ const t=byId('toast'); t.textContent=msg; t.classList.remove('hidden'); t.style.background= ok? '#22c55e22':'#ef444422'; setTimeout(()=> t.classList.add('hidden'), 1600); };
-const debounce = (fn,d)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d); }; };
-const fmtDate = v=>{ const d=new Date(v); return isNaN(d)?'':d.toLocaleDateString(); };
-const todayYMD = ()=> new Date().toISOString().slice(0,10);
+const byId=id=>document.getElementById(id);
+const toast=(msg,ok=true)=>{const t=byId('toast'); t.textContent=msg; t.classList.remove('hidden'); t.style.background= ok?'#22c55e22':'#ef444422'; setTimeout(()=>t.classList.add('hidden'),1600);};
+const debounce=(fn,d)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d);} };
 
-/* ===== SMART HEADER MAP (no hardcoding) ===== */
+/* ===== HEADER MAP ===== */
 function buildHeaderMap(headers){
-  const H = headers.map(h=> String(h||'').trim());
-  const find = (...parts)=> H.find(h=> parts.some(p=> h.toLowerCase().includes(p))) || null;
+  const H=headers.map(h=>String(h||'').trim());
+  const find=(...parts)=> H.find(h=> parts.some(p=> h.toLowerCase().includes(p))) || null;
   return {
-    USER:     find('user'),
-    LOT:      find('lot'),
-    ITEM:     find('item'),
-    COLOUR:   find('colour','color'),
-    QTY:      find('qty','quantity'),
-    BAGSIZE:  find('bag size','plastic bag size','bag_size'),
-    BAGKG:    find('bag qty','bag kg','plastic bag qty','bag weight'),
+    USER:find('user'), LOT:find('lot'),
+    ITEM:find('item'), COLOUR:find('colour','color'),
+    QTY:find('qty','quantity'),
+    BAGSIZE:find('bag size','plastic bag size','bag_size'),
+    BAGKG:find('bag qty','bag kg','plastic bag qty','bag weight'),
     TIMESTAMP:find('timestamp','time','date')
   };
 }
 
-/* ===== LOAD MASTERS / META / RECORDS ===== */
-async function loadMeta(){
-  const url = new URL(API); url.searchParams.set('action','meta');
-  const res = await fetch(url); const json = await res.json();
-  metaHeaders = json.headers || [];
-  headerMap = buildHeaderMap(metaHeaders);
-}
-
+/* ===== LOAD META / MASTERS / RECORDS (for dashboard stats) ===== */
+async function loadMeta(){ const u=new URL(API); u.searchParams.set('action','meta'); const r=await fetch(u); const j=await r.json(); metaHeaders=j.headers||[]; headerMap=buildHeaderMap(metaHeaders); }
 async function loadMasters(){
-  const url = new URL(API); url.searchParams.set('action','masters');
-  const res = await fetch(url); const json = await res.json();
-  const m = json.masters || {};
-
-  const keyBy = pred => Object.keys(m).find(k => pred(k.toLowerCase()));
-  const itemsKey   = keyBy(k=> k.includes('item'));
-  const coloursKey = keyBy(k=> k.includes('colour') || k.includes('color'));
-  const usersKey   = keyBy(k=> k.includes('user'));
-  const sizeKey    = keyBy(k=> (k.includes('bag') && k.includes('size')));
-  const weightKey  = keyBy(k=> (k.includes('bag') && (k.includes('kg') || k.includes('weight') || k.includes('qty'))));
-
-  masters.items   = (m[itemsKey]||[]).filter(Boolean);
-  masters.colours = (m[coloursKey]||[]).filter(Boolean);
-  masters.users   = (m[usersKey]||[]).filter(Boolean);
-  const sizes     = (m[sizeKey]||[]);
-  const weights   = (m[weightKey]||[]);
-  masters.bagPairs = sizes.map((s,i)=> ({ size:s, weight: Number(weights[i]||0) }));
-
-  fillSelect('fUser', masters.users);
-  fillSelect('fItem', masters.items);
-  fillSelect('fColour', masters.colours);
-  fillSelectPairs('fBag', masters.bagPairs);
+  const u=new URL(API); u.searchParams.set('action','masters'); const r=await fetch(u); const j=await r.json(); const m=j.masters||{};
+  const keyBy=pred=>Object.keys(m).find(k=>pred(k.toLowerCase()));
+  masters.items=(m[keyBy(k=>k.includes('item'))]||[]).filter(Boolean);
+  masters.colours=(m[keyBy(k=>k.includes('colour')||k.includes('color'))]||[]).filter(Boolean);
+  masters.users=(m[keyBy(k=>k.includes('user'))]||[]).filter(Boolean);
+  const sizes=(m[keyBy(k=>k.includes('bag')&&k.includes('size'))]||[]), weights=(m[keyBy(k=>k.includes('bag')&&(k.includes('kg')||k.includes('weight')||k.includes('qty')))]||[]);
+  masters.bagPairs=sizes.map((s,i)=>({size:s, weight:Number(weights[i]||0)}));
+  // fill selects
+  fillSel('fUser', masters.users); fillSel('fItem', masters.items); fillSel('fColour', masters.colours); fillSelPairs('fBag', masters.bagPairs);
 }
-
 async function loadRecords(){
-  byId('loader').classList.remove('hidden');
-  const url = new URL(API); url.searchParams.set('action','list');
-  const res = await fetch(url); const json = await res.json();
-  records = json.records || [];
-  renderRecords();
-  updateSummary();
-  byId('loader').classList.add('hidden');
+  const u=new URL(API); u.searchParams.set('action','list'); const r=await fetch(u); const j=await r.json(); records=j.records||[]; updateSummary();
 }
-
-/* ===== UI helpers ===== */
-function fillSelect(id, arr){
-  const el = byId(id); el.innerHTML = '';
-  arr.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); });
-}
-function fillSelectPairs(id, arr){
-  const el = byId(id); el.innerHTML = '';
-  arr.forEach(p=>{ const o=document.createElement('option'); o.value=p.size; o.textContent=p.size; o.dataset.weight=p.weight; el.appendChild(o); });
-}
-
-/* ===== SUMMARY ===== */
 function updateSummary(){
+  const H=headerMap;
   byId('statTotal').textContent = records.length;
-  const H = headerMap;
-  const getYMD = r => {
-    const k = H.TIMESTAMP; if(!k) return '';
-    const v = r[k]; if(!v) return '';
-    const d = new Date(v); if(isNaN(d)) return '';
-    return d.toISOString().slice(0,10);
-  };
-  byId('statToday').textContent = records.filter(r=> getYMD(r) === todayYMD()).length;
-  let sum = 0; if (H.QTY) records.forEach(r => sum += Number(r[H.QTY] || 0));
-  byId('statQty').textContent = sum;
+  const getYMD=r=>{ const k=H.TIMESTAMP; if(!k) return ''; const v=r[k]; if(!v) return ''; const d=new Date(v); if(isNaN(d)) return ''; return d.toISOString().slice(0,10); };
+  const today=new Date().toISOString().slice(0,10);
+  byId('statToday').textContent = records.filter(r=> getYMD(r)===today).length;
+  let sum=0; if(H.QTY) records.forEach(r=> sum += Number(r[H.QTY]||0)); byId('statQty').textContent = sum;
   byId('statSync').textContent = new Date().toLocaleTimeString();
 }
 
-/* ===== RECORDS RENDER / SEARCH ===== */
-byId('q').addEventListener('input', debounce(renderRecords, 200));
+/* ===== UI HELPERS ===== */
+function fillSel(id, arr){ const el=byId(id); el.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); }); }
+function fillSelPairs(id, arr){ const el=byId(id); el.innerHTML=''; arr.forEach(p=>{ const o=document.createElement('option'); o.value=p.size; o.textContent=p.size; o.dataset.weight=p.weight; el.appendChild(o); }); }
 
-function renderRecords(){
-  const q = (byId('q').value || '').toLowerCase();
-  const el = byId('records'); el.innerHTML = '';
-  const R = q ? records.filter(r => JSON.stringify(r).toLowerCase().includes(q)) : records;
-  const H = headerMap;
-
-  R.forEach(r=>{
-    const id = r._id;
-    const item   = H.ITEM   ? r[H.ITEM]   : (r.Item || '');
-    const colour = H.COLOUR ? r[H.COLOUR] : (r.Colour || '');
-    const qty    = H.QTY    ? r[H.QTY]    : (r.Qty || r.Quantity || '');
-    const lot    = H.LOT    ? r[H.LOT]    : (r.Lot || r['Lot No'] || '');
-    const ts     = H.TIMESTAMP ? r[H.TIMESTAMP] : '';
-
-    const card = document.createElement('div');
-    card.className = 'glass dark rounded-2xl p-3 flex items-center justify-between gap-3';
-    card.innerHTML = `
-      <div>
-        <div class="font-semibold">${item||'-'} <span class="opacity-60">${colour||''}</span></div>
-        <div class="text-xs opacity-70">Lot: ${lot||'-'} • Qty: ${qty||'-'} ${ts ? '• ' + (fmtDate(ts)) : ''}</div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button class="px-3 py-2 rounded-xl glass dark text-sm" data-id="${id}" data-action="edit">Edit</button>
-        <button class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm" data-id="${id}" data-action="del">Delete</button>
-      </div>`;
-    el.appendChild(card);
-  });
-}
-
-byId('records').addEventListener('click', async (e)=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  const id = Number(btn.dataset.id);
-  const action = btn.dataset.action;
-  if (action === 'edit') openEditor(id);
-  if (action === 'del')  deleteRow(id);
-});
-
-/* ===== EDITOR ===== */
-function openEditor(id){
-  const r = records.find(x => x._id === id); if(!r) return;
-  editing.id = id; editing.record = {...r};
-  const H = headerMap;
-  byId('eUser').value   = H.USER     ? (r[H.USER] || '') : '';
-  byId('eLot').value    = H.LOT      ? (r[H.LOT] || '') : '';
-  byId('eItem').value   = H.ITEM     ? (r[H.ITEM] || '') : '';
-  byId('eColour').value = H.COLOUR   ? (r[H.COLOUR] || '') : '';
-  byId('eQty').value    = H.QTY      ? (r[H.QTY] || '') : '';
-  byId('eBag').value    = H.BAGSIZE  ? (r[H.BAGSIZE] || '') : '';
-  byId('eBagKg').value  = H.BAGKG    ? (r[H.BAGKG] || '') : '';
-  byId('editSheet').classList.add('open');
-}
-byId('btnCloseSheet').addEventListener('click', ()=> byId('editSheet').classList.remove('open'));
-
-async function deleteRow(id){
-  if (!confirm('Delete this row?')) return;
-  const url = new URL(API); url.searchParams.set('action','delete'); url.searchParams.set('id', id);
-  const res = await fetch(url); await res.json();
-  toast('Deleted');
-  await loadRecords();
-}
-
-byId('btnSaveEdit').addEventListener('click', async ()=>{
-  if (!editing.id) return;
-  const H = headerMap; const rec = {...editing.record};
-  if (H.USER)    rec[H.USER]    = byId('eUser').value;
-  if (H.LOT)     rec[H.LOT]     = byId('eLot').value;
-  if (H.ITEM)    rec[H.ITEM]    = byId('eItem').value;
-  if (H.COLOUR)  rec[H.COLOUR]  = byId('eColour').value;
-  if (H.QTY)     rec[H.QTY]     = Number(byId('eQty').value || 0);
-  if (H.BAGSIZE) rec[H.BAGSIZE] = byId('eBag').value;
-  if (H.BAGKG)   rec[H.BAGKG]   = Number(byId('eBagKg').value || 0);
-  const payload = { action:'update', id: editing.id, record: rec };
-  const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  await res.json();
-  toast('Saved'); byId('editSheet').classList.remove('open');
-  await loadRecords();
-});
-
-/* ===== FORM / BATCH ===== */
-function calcBagKg(){
-  const qty = Number(byId('fQty').value || 0);
-  const sel = byId('fBag'); const w = Number((sel.selectedOptions[0]?.dataset.weight) || 0);
-  byId('fBagKg').value = ((qty * w) / 1000).toFixed(2);
-}
-['fQty','fBag'].forEach(id => byId(id).addEventListener('input', calcBagKg));
+/* ===== FORM LOGIC ===== */
+function calcBagKg(){ const qty=Number(byId('fQty').value||0); const w=Number((byId('fBag').selectedOptions[0]?.dataset.weight)||0); byId('fBagKg').value=((qty*w)/1000).toFixed(2); }
+byId('fQty').addEventListener('input', calcBagKg); byId('fBag').addEventListener('change', calcBagKg);
+byId('fItemSearch').addEventListener('input', e=> filterSel('fItem', masters.items, e.target.value));
+byId('fColourSearch').addEventListener('input', e=> filterSel('fColour', masters.colours, e.target.value));
+function filterSel(selectId, src, q){ const el=byId(selectId); const list=src.filter(x=>String(x).toLowerCase().includes((q||'').toLowerCase())); el.innerHTML=''; list.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); }); }
 
 function recFromForm(){
   calcBagKg();
-  const H = headerMap;
-  const r = {};
-  if (H.USER)    r[H.USER]    = byId('fUser').value;
-  if (H.LOT)     r[H.LOT]     = byId('fLot').value;
-  if (H.ITEM)    r[H.ITEM]    = byId('fItem').value;
-  if (H.COLOUR)  r[H.COLOUR]  = byId('fColour').value;
-  if (H.QTY)     r[H.QTY]     = Number(byId('fQty').value || 0);
-  if (H.BAGSIZE) r[H.BAGSIZE] = byId('fBag').value;
-  if (H.BAGKG)   r[H.BAGKG]   = Number(byId('fBagKg').value || 0);
+  const H=headerMap, r={};
+  if(H.USER) r[H.USER]=byId('fUser').value;
+  if(H.LOT) r[H.LOT]=byId('fLot').value;
+  if(H.ITEM) r[H.ITEM]=byId('fItem').value;
+  if(H.COLOUR) r[H.COLOUR]=byId('fColour').value;
+  if(H.QTY) r[H.QTY]=Number(byId('fQty').value||0);
+  if(H.BAGSIZE) r[H.BAGSIZE]=byId('fBag').value;
+  if(H.BAGKG) r[H.BAGKG]=Number(byId('fBagKg').value||0);
   return r;
 }
-
 function clearForm(){ ['fLot','fQty','fBagKg'].forEach(id=> byId(id).value=''); }
 
 function renderBatch(){
-  const el = byId('batchList'); el.innerHTML = '';
-  const H = headerMap;
+  const H=headerMap, el=byId('batchList'); el.innerHTML='';
   batch.forEach((r,i)=>{
-    const item = r[H.ITEM]||''; const colour=r[H.COLOUR]||''; const qty=r[H.QTY]||0; const user=r[H.USER]||'';
-    const card = document.createElement('div');
-    card.className = 'glass dark rounded-2xl p-3 flex items-center justify-between gap-3';
-    card.innerHTML = `
-      <div><div class="font-semibold">${item} <span class="opacity-60">${colour}</span></div>
-      <div class="text-xs opacity-70">User: ${user} • Qty: ${qty}</div></div>
-      <button class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm" data-i="${i}" data-act="rm">Remove</button>`;
-    el.appendChild(card);
+    const item=r[H.ITEM]||'', colour=r[H.COLOUR]||'', qty=r[H.QTY]||0, user=r[H.USER]||'';
+    const div=document.createElement('div');
+    div.className='glass dark rounded-2xl p-3 flex items-center justify-between gap-3';
+    div.innerHTML=`<div><div class="font-semibold">${item} <span class="opacity-60">${colour}</span></div><div class="text-xs opacity-70">User: ${user} • Qty: ${qty}</div></div><button class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm" data-i="${i}">Remove</button>`;
+    div.querySelector('button').addEventListener('click',()=>{ batch.splice(i,1); renderBatch(); });
+    el.appendChild(div);
   });
 }
 
 byId('btnAddRow').addEventListener('click', ()=>{
-  const H = headerMap;
-  const r = recFromForm();
-  if (!r[H.USER] || !r[H.ITEM] || !r[H.COLOUR] || !r[H.QTY]) { toast('Fill User/Item/Colour/Qty', false); return; }
+  const H=headerMap, r=recFromForm();
+  if(!r[H.USER] || !r[H.ITEM] || !r[H.COLOUR] || !r[H.QTY]){ toast('Fill User/Item/Colour/Qty', false); return; }
   batch.push(r); renderBatch(); clearForm();
 });
-
-byId('batchList').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  if (btn.dataset.act === 'rm'){ batch.splice(Number(btn.dataset.i),1); renderBatch(); }
-});
-
-byId('btnResetBatch').addEventListener('click', ()=>{ batch = []; renderBatch(); });
-
+byId('btnResetRow').addEventListener('click', clearForm);
+byId('btnResetBatch').addEventListener('click', ()=>{ batch=[]; renderBatch(); });
 byId('btnSubmitBatch').addEventListener('click', async ()=>{
-  if (batch.length === 0) { toast('Nothing to submit', false); return; }
-  const payload = { action:'batchCreate', records: batch };
-  const res = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  const json = await res.json();
-  toast('Saved ' + (json.ids ? json.ids.length : batch.length) + ' rows');
-  batch = []; renderBatch(); await loadRecords();
+  if(batch.length===0){ toast('Nothing to submit', false); return; }
+  const res=await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'batchCreate', records:batch})});
+  const j=await res.json(); toast('Saved '+(j.ids?j.ids.length:batch.length)+' rows');
+  batch=[]; renderBatch(); await loadRecords();
 });
-
-/* ===== SEARCHABLE DROPDOWNS ===== */
-function filterSel(selectId, sourceArr, searchValue){
-  const el = byId(selectId); const q = (searchValue || '').toLowerCase();
-  const items = sourceArr.filter(x => String(x).toLowerCase().includes(q));
-  el.innerHTML = ''; items.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); });
-}
-byId('fItemSearch').addEventListener('input', e => filterSel('fItem', masters.items, e.target.value));
-byId('fColourSearch').addEventListener('input', e => filterSel('fColour', masters.colours, e.target.value));
-
-/* ===== FAB ===== */
-byId('fab').addEventListener('click', ()=>{ window.scrollTo({top:0, behavior:'smooth'}); byId('fLot').focus(); });
-
-/* ===== REFRESH ===== */
-byId('btnRefresh').addEventListener('click', ()=> loadRecords());
 
 /* ===== INIT ===== */
-(async function init(){
-  await loadMeta();
-  await loadMasters();
-  await loadRecords();
-})();
+(async function init(){ await loadMeta(); await loadMasters(); await loadRecords(); })();
 </script>
 </body>
 </html>
