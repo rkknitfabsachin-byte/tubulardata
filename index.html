@@ -107,7 +107,6 @@
   <section class="glass dark rounded-3xl p-5 sm:p-6 mt-4">
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-lg font-semibold">🧾 Draft Entries</h2>
-      <div class="text-xs opacity-70">Edit/remove before submit</div>
     </div>
 
     <div id="batchList" class="grid gap-3"></div>
@@ -155,43 +154,32 @@ const API = "https://script.google.com/macros/s/AKfycbyluofZ3brYfUdQCaAPgm5-gJJZ
 /* ========= THEME ========= */
 const byId=id=>document.getElementById(id);
 const body=document.body, btnTheme=byId('themeToggle');
-
 function applyTheme(t){
-  body.classList.remove('dark','light');
-  body.classList.add(t);
-  document.querySelectorAll('.glass').forEach(el=>{
-    el.classList.remove('dark','light');
-    el.classList.add(t);
-  });
+  body.classList.remove('dark','light'); body.classList.add(t);
+  document.querySelectorAll('.glass').forEach(el=>{ el.classList.remove('dark','light'); el.classList.add(t); });
   btnTheme.textContent = t==='dark' ? '🌙 Dark' : '☀️ Light';
   localStorage.setItem('theme',t);
 }
 applyTheme(localStorage.getItem('theme') || 'dark');
 btnTheme.addEventListener('click', ()=> applyTheme(body.classList.contains('dark')?'light':'dark'));
 
-/* ========= GLOBAL STATE ========= */
+/* ========= STATE ========= */
 let masters={items:[],colours:[],users:[]};
-let bagPairs=[];
-let itemToSku={};
-let itemBagMap={};
-let sizeToSku={};
+let bagPairs=[];        // [{size, weight(g), sku}]
+let itemToSku={};       // ITEM -> SKU CODE
+let itemBagMap={};      // ITEM -> default bag size
+let sizeToSku={};       // BAG SIZE -> bag SKU
+
 let metaHeaders=[],H={};
 let batch=[];
 let editingIndex=null;
-
-let filteredItems=null;
-let filteredColours=null;
+let filteredItems=null, filteredColours=null;
 
 /* ========= HELPERS ========= */
-const toast=(msg,ok=true)=>{
-  const t=byId('toast');
-  t.textContent=msg;
-  t.classList.remove('hidden');
-  t.style.background = ok?'#22c55e22':'#ef444422';
-  setTimeout(()=>t.classList.add('hidden'),1600);
-};
+const toast=(msg,ok=true)=>{ const t=byId('toast'); t.textContent=msg; t.classList.remove('hidden'); t.style.background= ok?'#22c55e22':'#ef444422'; setTimeout(()=>t.classList.add('hidden'),1600); };
 const todayYMD=()=> new Date().toISOString().slice(0,10);
 
+/* build and rebuild selects */
 function rebuildSelect(el,list){
   el.innerHTML='';
   list.forEach(v=>{
@@ -200,24 +188,31 @@ function rebuildSelect(el,list){
     el.appendChild(o);
   });
 }
+/* build bag selects WITH DATA ATTRIBUTES (weight + sku) */
+function rebuildBagSelect(el, pairs){
+  el.innerHTML='';
+  pairs.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.size;
+    o.textContent=p.size;
+    o.dataset.weight = p.weight;   // grams
+    o.dataset.sku = p.sku || '';
+    el.appendChild(o);
+  });
+}
 
+/* searchable filters (persist lists) */
 function filterSel(selectId, src, q){
   const el=byId(selectId);
-  const list = src.filter(x =>
-    String(x).toLowerCase().includes(String(q||'').toLowerCase())
-  );
-
+  const list=src.filter(x=> String(x).toLowerCase().includes(String(q||'').toLowerCase()));
   if(selectId==='fItem') filteredItems=list;
   if(selectId==='fColour') filteredColours=list;
-
   rebuildSelect(el,list);
-
   if(selectId==='fItem' && el.options.length){
     el.value=el.options[0].value;
     triggerAutoBag();
   }
 }
-
 function fillSel(id,arr){
   const el=byId(id);
   let source=arr;
@@ -225,25 +220,23 @@ function fillSel(id,arr){
   if(id==='fColour' && filteredColours) source=filteredColours;
   rebuildSelect(el,source);
 }
-function fillSelPairs(id,arr){ rebuildSelect(byId(id),arr.map(x=>x.size)); }
 
 /* ========= HEADER MAP ========= */
 function buildHeaderMap(headers){
   const H=headers.map(h=>String(h||'').trim());
-  const find=(...p)=>H.find(h=>p.some(x=>h.toLowerCase().includes(x)))||null;
-  const skuIdx = H.map((h,i)=>h.toLowerCase().includes('sku code')?i:-1).filter(i=>i>=0);
-
+  const find=(...p)=> H.find(h=> p.some(x=>h.toLowerCase().includes(x))) || null;
+  const skuIdx = H.map((h,i)=> h.toLowerCase().includes('sku code') ? i:-1).filter(i=>i>=0);
   return {
     DATE:    find('date'),
     NAME:    find('name','user'),
     LOT:     find('lot'),
-    SKU:     H[skuIdx[0]],
+    SKU:     skuIdx.length? H[skuIdx[0]] : null,          // item sku (first)
     ITEM:    find('item'),
     COLOUR:  find('colour'),
-    QTY:     find('qty','item qty'),
+    QTY:     find('qty','item qty','quantity'),
     BAGSIZE: find('bag size'),
-    BAGKG:   find('bag wt','bag kg'),
-    BAGSKU:  H[skuIdx[skuIdx.length-1]]
+    BAGKG:   find('bag wt','bag kg','bag weight'),
+    BAGSKU:  skuIdx.length>1? H[skuIdx[skuIdx.length-1]] : null  // bag sku (last)
   };
 }
 
@@ -251,9 +244,9 @@ function buildHeaderMap(headers){
 async function loadMeta(){
   const u=new URL(API); u.searchParams.set('action','meta');
   const r=await fetch(u); const j=await r.json();
-  metaHeaders=j.headers||[];
-  H=buildHeaderMap(metaHeaders);
+  metaHeaders=j.headers||[]; H=buildHeaderMap(metaHeaders);
 }
+
 async function loadMasters(){
   const u=new URL(API); u.searchParams.set('action','masters');
   const r=await fetch(u); const j=await r.json();
@@ -262,29 +255,30 @@ async function loadMasters(){
   masters.colours = j.masters?.colours || [];
   masters.users = j.masters?.users || [];
 
-  bagPairs = j.bagPairs || [];
-  itemToSku = j.itemToSku || {};
+  bagPairs   = j.bagPairs || [];
+  itemToSku  = j.itemToSku || {};
   itemBagMap = j.bagMap || {};
-  sizeToSku = j.sizeToSku || {};
+  sizeToSku  = j.sizeToSku || {};
 
   fillSel('fUser', masters.users);
   fillSel('fItem', masters.items);
   fillSel('fColour', masters.colours);
 
-  rebuildSelect(byId('fBag'), bagPairs.map(x=>x.size));
+  // CRITICAL: set weight/sku on options
+  rebuildBagSelect(byId('fBag'), bagPairs);
 
+  // editor dropdowns
   fillSel('eItem', masters.items);
   fillSel('eColour', masters.colours);
-  rebuildSelect(byId('eBag'), bagPairs.map(x=>x.size));
+  rebuildBagSelect(byId('eBag'), bagPairs);
 }
 
 /* ========= FORM LOGIC ========= */
 function calcBagKg(){
   const qty = Number(byId('fQty').value||0);
-  const w   = Number((byId('fBag').selectedOptions[0]?.dataset?.weight)||0);
+  const w   = Number((byId('fBag').selectedOptions[0]?.dataset.weight)||0); // grams
   byId('fBagKg').value = ((qty*w)/1000).toFixed(2);
 }
-
 byId('fQty').addEventListener('input', calcBagKg);
 byId('fBag').addEventListener('change', calcBagKg);
 
@@ -292,58 +286,51 @@ function triggerAutoBag(){
   const item=byId('fItem').value;
   const def=itemBagMap[item];
   if(def){
-    const opt=[...byId('fBag').options].find(o=>String(o.value).trim()===String(def).trim());
+    const opt=[...byId('fBag').options].find(o=> String(o.value).trim()===String(def).trim());
     if(opt) byId('fBag').value=opt.value;
   }
   calcBagKg();
 }
-
 byId('fItem').addEventListener('change', triggerAutoBag);
 
-byId('fItemSearch').addEventListener('input', e=>filterSel('fItem',masters.items,e.target.value));
-byId('fColourSearch').addEventListener('input', e=>filterSel('fColour',masters.colours,e.target.value));
+byId('fItemSearch').addEventListener('input', e=> filterSel('fItem', masters.items, e.target.value));
+byId('fColourSearch').addEventListener('input', e=> filterSel('fColour', masters.colours, e.target.value));
 
 /* ========= ADD ROW ========= */
 byId('btnAddRow').addEventListener('click', ()=>{
   const sk=H;
-  const item=byId('fItem').value;
-  const bag=byId('fBag').value;
+  const item = byId('fItem').value;
+  const bag  = byId('fBag').value;
 
-  const dStr = byId('fDate').value || todayYMD();
-  const dateIso = new Date(dStr).toISOString();
+  const dStr   = byId('fDate').value || todayYMD();
+  const dateIso= new Date(dStr).toISOString();
 
   const row = {
-    [sk.DATE]: dateIso,
-    [sk.NAME]: byId('fUser').value,
-    [sk.LOT]:  byId('fLot').value,
-    [sk.SKU]:  itemToSku[item] || '',
-    [sk.ITEM]: item,
-    [sk.COLOUR]: byId('fColour').value,
-    [sk.QTY]: Number(byId('fQty').value||0),
+    [sk.DATE]:    dateIso,
+    [sk.NAME]:    byId('fUser').value,
+    [sk.LOT]:     byId('fLot').value,
+    [sk.SKU]:     itemToSku[item] || '',
+    [sk.ITEM]:    item,
+    [sk.COLOUR]:  byId('fColour').value,
+    [sk.QTY]:     Number(byId('fQty').value||0),
     [sk.BAGSIZE]: bag,
-    [sk.BAGKG]: Number(byId('fBagKg').value||0),
-    [sk.BAGSKU]: sizeToSku[bag] || ''
+    [sk.BAGKG]:   Number(byId('fBagKg').value||0),
+    [sk.BAGSKU]:  sizeToSku[bag] || (byId('fBag').selectedOptions[0]?.dataset.sku) || ''
   };
 
   if(!row[sk.NAME] || !row[sk.ITEM] || !row[sk.COLOUR] || !row[sk.QTY]){
-    toast("Fill Name / Item / Colour / Qty", false);
-    return;
+    toast("Fill Name / Item / Colour / Qty", false); return;
   }
 
   batch.push(row);
   renderBatch();
-
-  byId('fLot').value='';
-  byId('fQty').value='';
-  byId('fBagKg').value='';
+  byId('fLot').value=''; byId('fQty').value=''; byId('fBagKg').value='';
 });
 
 /* ========= PREVIEW RENDER ========= */
 function renderBatch(){
-  const el=byId('batchList');
-  el.innerHTML='';
+  const el=byId('batchList'); el.innerHTML='';
   const sk=H;
-
   batch.forEach((r,i)=>{
     const card=document.createElement('div');
     card.className='glass dark rounded-2xl p-4 sm:p-5 card-anim';
@@ -354,16 +341,16 @@ function renderBatch(){
             🧵 ${r[sk.ITEM]} <span class="opacity-70">— ${r[sk.COLOUR]}</span>
           </div>
           <div class="mt-1 text-sm opacity-80">
-            Lot: <span class="font-semibold">${r[sk.LOT]}</span>
+            Lot: <span class="font-semibold">${r[sk.LOT]||'-'}</span>
             <span class="mx-2">•</span>
-            Qty: <span class="font-semibold">${r[sk.QTY]}</span> rolls
+            Qty: <span class="font-semibold">${r[sk.QTY]||0}</span> rolls
             <span class="mx-2">•</span>
-            Bag: <span class="font-semibold">${r[sk.BAGSIZE]}</span>
+            Bag: <span class="font-semibold">${r[sk.BAGSIZE]||'-'}</span>
             <span class="mx-2">•</span>
-            <span class="tag">KG: ${r[sk.BAGKG]}</span>
+            <span class="tag">KG: ${r[sk.BAGKG]||0}</span>
           </div>
           <div class="mt-1 text-xs opacity-60">
-            Name: ${r[sk.NAME]}  
+            Name: ${r[sk.NAME]} • Item SKU: ${r[sk.SKU]||'-'} • Bag SKU: ${r[sk.BAGSKU]||'-'}
           </div>
         </div>
         <div class="flex gap-2">
@@ -374,118 +361,89 @@ function renderBatch(){
     el.appendChild(card);
   });
 }
-
 byId('batchList').addEventListener('click',(e)=>{
-  const btn=e.target.closest('button'); 
-  if(!btn) return;
+  const btn=e.target.closest('button'); if(!btn) return;
   const i=+btn.dataset.i;
-
-  if(btn.dataset.act==='del'){
-    batch.splice(i,1);
-    renderBatch();
-    return;
-  }
-  if(btn.dataset.act==='edit'){
-    openInline(i);
-  }
+  if(btn.dataset.act==='del'){ batch.splice(i,1); renderBatch(); return; }
+  if(btn.dataset.act==='edit'){ openInline(i); }
 });
 
 /* ========= INLINE EDIT ========= */
 function openInline(i){
-  editingIndex=i;
-  const r=batch[i], sk=H;
-
-  byId('eLot').value=r[sk.LOT];
-
+  editingIndex=i; const r=batch[i], sk=H;
+  byId('eLot').value=r[sk.LOT]||'';
   rebuildSelect(byId('eItem'), masters.items);
   rebuildSelect(byId('eColour'), masters.colours);
-  rebuildSelect(byId('eBag'), bagPairs.map(x=>x.size));
-
-  byId('eItem').value=r[sk.ITEM];
-  byId('eColour').value=r[sk.COLOUR];
-  byId('eBag').value=r[sk.BAGSIZE];
-  byId('eQty').value=r[sk.QTY];
-
+  rebuildBagSelect(byId('eBag'), bagPairs);     // IMPORTANT: include weights here too
+  byId('eItem').value=r[sk.ITEM]||'';
+  byId('eColour').value=r[sk.COLOUR]||'';
+  byId('eBag').value=r[sk.BAGSIZE]||'';
+  byId('eQty').value=r[sk.QTY]||0;
   updateEditKg();
   byId('inlineEdit').classList.remove('hidden');
 }
-
 function updateEditKg(){
-  const qty = +byId('eQty').value||0;
-  const size= byId('eBag').value;
-  const pair = bagPairs.find(x=>x.size==size);
-  const w= (pair?.weight||0);
-  byId('eBagKg').value=((qty*w)/1000).toFixed(2);
+  const q=+byId('eQty').value||0;
+  const w=+(byId('eBag').selectedOptions[0]?.dataset.weight||0);
+  byId('eBagKg').value=((q*w)/1000).toFixed(2);
 }
-byId('eQty').addEventListener('input',updateEditKg);
-byId('eBag').addEventListener('change',updateEditKg);
-
-byId('btnCloseInline').addEventListener('click',()=> byId('inlineEdit').classList.add('hidden'));
-
-byId('btnSaveInline').addEventListener('click',()=>{
-  const sk=H;
-  const r=batch[editingIndex];
-
-  r[sk.LOT] = byId('eLot').value;
-  r[sk.ITEM]= byId('eItem').value;
-  r[sk.COLOUR] = byId('eColour').value;
-  r[sk.QTY] = +byId('eQty').value;
+byId('eQty').addEventListener('input', updateEditKg);
+byId('eBag').addEventListener('change', updateEditKg);
+byId('eItemSearch').addEventListener('input', e=> filterSel('eItem', masters.items, e.target.value));
+byId('eColourSearch').addEventListener('input', e=> filterSel('eColour', masters.colours, e.target.value));
+byId('btnCloseInline').addEventListener('click', ()=> byId('inlineEdit').classList.add('hidden'));
+byId('btnSaveInline').addEventListener('click', ()=>{
+  const sk=H; const r=batch[editingIndex];
+  r[sk.LOT]     = byId('eLot').value;
+  r[sk.ITEM]    = byId('eItem').value;
+  r[sk.COLOUR]  = byId('eColour').value;
+  r[sk.QTY]     = +byId('eQty').value||0;
   r[sk.BAGSIZE] = byId('eBag').value;
-  r[sk.BAGKG] = +byId('eBagKg').value;
-
-  r[sk.SKU] = itemToSku[r[sk.ITEM]] || '';
-  r[sk.BAGSKU] = sizeToSku[r[sk.BAGSIZE]] || '';
-
-  byId('inlineEdit').classList.add('hidden');
-  renderBatch();
+  r[sk.BAGKG]   = +byId('eBagKg').value||0;
+  r[sk.SKU]     = itemToSku[r[sk.ITEM]] || '';
+  r[sk.BAGSKU]  = sizeToSku[r[sk.BAGSIZE]] || (byId('eBag').selectedOptions[0]?.dataset.sku) || '';
+  byId('inlineEdit').classList.add('hidden'); renderBatch();
 });
 
-/* ========= SUBMIT ALL (final fixed) ========= */
+/* ========= SUBMIT ALL ========= */
 byId('btnSubmitBatch').addEventListener('click', async ()=>{
-  if(batch.length===0){ toast('Nothing to submit',false); return; }
-
+  if(batch.length===0){ toast('Nothing to submit', false); return; }
   const sk=H;
-  const dStr = byId('fDate').value || todayYMD();
-  const dateIso = new Date(dStr).toISOString();
-  const nameVal = byId('fUser').value;
+  const dStr   = byId('fDate').value || todayYMD();
+  const dateIso= new Date(dStr).toISOString();
+  const nameVal= byId('fUser').value||'';
 
   const rows = batch.map(r=>({
     ...r,
     [sk.DATE]: dateIso,
-    [sk.NAME]: nameVal
+    [sk.NAME]: nameVal || r[sk.NAME]
   }));
 
   try{
-    const res=await fetch(API,{
+    const res = await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ action:'batchcreate', records: rows })
+      body: JSON.stringify({ action:'batchcreate', records: rows })
     });
 
-    const raw=await res.text();
-    let j;
-    try { j=JSON.parse(raw); }
-    catch { j={ error:'Non-JSON response', raw }; }
+    const raw = await res.text();
+    let j; try{ j=JSON.parse(raw); } catch{ j={ error:'Non-JSON response', raw }; }
 
     if(!res.ok || j.error){
-      console.error('API fail:',{status:res.status,j});
-      toast(`Save failed (${res.status})`, false);
-      return;
+      console.error('API fail:', {status:res.status, body:j});
+      toast(`Save failed (${res.status})`, false); return;
     }
-
-    toast(`Saved ${j.ids?j.ids.length:rows.length} rows`);
+    toast(`Saved ${j.count ?? j.ids?.length ?? rows.length} rows`);
     batch=[]; renderBatch();
-
   }catch(err){
-    console.error('Network error:', err);
+    console.error('Network error', err);
     toast('Network/API error', false);
   }
 });
 
 /* ========= CLEAR ========= */
-byId('btnResetBatch').addEventListener('click',()=>{
-  batch=[]; renderBatch();
-});
+byId('btnClearRow').addEventListener('click', ()=>{ byId('fLot').value=''; byId('fQty').value=''; byId('fBagKg').value=''; });
+byId('btnResetBatch').addEventListener('click', ()=>{ batch=[]; renderBatch(); });
 
 /* ========= INIT ========= */
 (async()=>{
@@ -495,6 +453,5 @@ byId('btnResetBatch').addEventListener('click',()=>{
   triggerAutoBag();
 })();
 </script>
-
 </body>
 </html>
