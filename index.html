@@ -16,27 +16,18 @@
     body.light{ background:#f7fbff; color:#0f172a; }
     .glass.dark{ backdrop-filter: blur(12px); background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); }
     .glass.light{ background:#ffffffee; backdrop-filter: blur(10px); border:1px solid #e2e8f0; box-shadow:0 10px 25px rgba(2,132,199,.06); }
-
-    @keyframes spin{ to{ transform:rotate(360deg);} }
     @keyframes fadeSlide{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
-    .ico-gear{ animation: spin 1.2s linear infinite; }
     .fade-in{ animation: fadeSlide .45s ease both; }
-
     .ctrl{ height:44px }
-    .tag{ padding:.25rem .6rem; border-radius:9999px; font-size:.72rem; border:1px solid #ffffff22 }
-    body.light .tag{ border-color:#e5e7eb }
   </style>
 </head>
 <body class="dark min-h-screen transition-colors duration-300">
-
 <header class="max-w-6xl mx-auto px-4 pt-6 pb-4">
   <div class="flex items-center justify-between gap-3">
-    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">
-      🧵 RK KNIT FAB — <span class="text-sky-300 dark:text-sky-300 light:text-sky-700">Tubular Entry</span>
-    </h1>
+    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">🧵 RK KNIT FAB — <span class="text-sky-300">Tubular Entry</span></h1>
     <div class="flex items-center gap-2">
-      <a href="./records.html" class="px-3 py-2 rounded-xl glass dark hover:bg-white/10 light:hover:bg-slate-200 text-sm">📜 View Records</a>
-      <button id="themeToggle" class="px-3 py-2 rounded-xl glass dark hover:bg-white/10 light:hover:bg-slate-200 text-sm">🌙 Dark</button>
+      <a href="./records.html" class="px-3 py-2 rounded-xl glass dark text-sm">📜 View Records</a>
+      <button id="themeToggle" class="px-3 py-2 rounded-xl glass dark text-sm">🌙 Dark</button>
     </div>
   </div>
 </header>
@@ -74,7 +65,11 @@
 
     <div class="grid sm:grid-cols-2 gap-3">
       <div>
-        <label class="block text-xs mb-1 opacity-80">User</label>
+        <label class="block text-xs mb-1 opacity-80">Date</label>
+        <input id="fDate" type="date" class="ctrl w-full glass dark rounded-2xl px-3"/>
+      </div>
+      <div>
+        <label class="block text-xs mb-1 opacity-80">Name</label>
         <select id="fUser" class="ctrl w-full glass dark rounded-2xl px-3"></select>
       </div>
       <div>
@@ -92,38 +87,31 @@
         <select id="fColour" class="ctrl w-full glass dark rounded-2xl px-3"></select>
       </div>
       <div>
-        <label class="block text-xs mb-1 opacity-80">Quantity (rolls)</label>
+        <label class="block text-xs mb-1 opacity-80">Item Qty (rolls)</label>
         <input id="fQty" type="number" class="ctrl w-full glass dark rounded-2xl px-3" placeholder="0"/>
       </div>
       <div>
-        <label class="block text-xs mb-1 opacity-80">Plastic Bag Size</label>
+        <label class="block text-xs mb-1 opacity-80">Bag Size</label>
         <select id="fBag" class="ctrl w-full glass dark rounded-2xl px-3"></select>
       </div>
       <div>
-        <label class="block text-xs mb-1 opacity-80">Plastic Bag Qty (kg)</label>
+        <label class="block text-xs mb-1 opacity-80">Bag Wt in KG</label>
         <input id="fBagKg" type="number" class="ctrl w-full glass dark rounded-2xl px-3" placeholder="Auto" readonly/>
-      </div>
-      <div class="flex items-end gap-2">
-        <button id="btnAddRow" class="w-full ctrl rounded-2xl bg-sky-500 hover:bg-sky-400 text-slate-900 font-semibold">Add to Batch</button>
-        <button id="btnResetRow" class="w-full ctrl rounded-2xl glass dark font-semibold">Clear</button>
       </div>
     </div>
 
-    <div id="batchList" class="mt-4 grid gap-2"></div>
-
     <div class="mt-3 flex gap-2">
-      <button id="btnSubmitBatch" class="flex-1 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold py-3">✅ Submit Batch</button>
-      <button id="btnResetBatch" class="flex-1 rounded-2xl glass dark font-semibold py-3">Reset</button>
+      <button id="btnSubmit" class="flex-1 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold py-3">✅ Submit</button>
+      <button id="btnClear" class="flex-1 rounded-2xl glass dark font-semibold py-3">Clear</button>
     </div>
 
     <div id="toast" class="hidden mt-3 px-4 py-3 rounded-xl text-sm font-semibold glass dark">Saved!</div>
   </section>
-
 </main>
 
 <script>
 /* ===== CONFIG ===== */
-const API = 'https://script.google.com/macros/s/AKfycbzpNNZbdznf953yIf9j4D5UhLhCfXVgVVjcupqEeQDZ5LIq_OKcKPdqEt9xz63gO9GN/exec'; // /exec URL
+const API = 'https://script.google.com/macros/s/AKfycbyluofZ3brYfUdQCaAPgm5-gJJZqUsknmi9aBH0fFM0Elpw-yXsWS1UHcOdmUlB50wO/exec';
 
 /* ===== THEME ===== */
 const body=document.body, btnTheme=document.getElementById('themeToggle');
@@ -137,109 +125,151 @@ applyTheme(localStorage.getItem('theme') || 'dark');
 btnTheme.addEventListener('click', ()=> applyTheme(body.classList.contains('dark') ? 'light' : 'dark'));
 
 /* ===== STATE ===== */
-let masters={ items:[], colours:[], users:[], bagPairs:[] };
-let batch=[];
-let records=[];
-let metaHeaders=[], headerMap={};
+let masters={ items:[], colours:[], users:[] };
+let bagPairs=[];           // [{size, weight(g), sku}]
+let itemToSku={};          // ITEM -> SKU CODE
+let itemBagMap={};         // ITEM -> default bag size
+let sizeToSku={};          // BAG SIZE -> BAG SKU
+let metaHeaders=[], H={};
 
 /* ===== UTIL ===== */
 const byId=id=>document.getElementById(id);
-const toast=(msg,ok=true)=>{const t=byId('toast'); t.textContent=msg; t.classList.remove('hidden'); t.style.background= ok?'#22c55e22':'#ef444422'; setTimeout(()=>t.classList.add('hidden'),1600);};
+const toast=(msg,ok=true)=>{ const t=byId('toast'); t.textContent=msg; t.classList.remove('hidden'); t.style.background= ok?'#22c55e22':'#ef444422'; setTimeout(()=>t.classList.add('hidden'),1600); };
+const todayYMD=()=> new Date().toISOString().slice(0,10);
 const debounce=(fn,d)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),d);} };
 
-/* ===== HEADER MAP ===== */
+/* ===== HEADER MAP (data sheet) ===== */
 function buildHeaderMap(headers){
-  const H=headers.map(h=>String(h||'').trim());
-  const find=(...parts)=> H.find(h=> parts.some(p=> h.toLowerCase().includes(p))) || null;
+  const arr=headers.map(h=>String(h||'').trim());
+  const find=(...p)=> arr.find(h=> p.some(x=> h.toLowerCase().includes(x))) || null;
   return {
-    USER:find('user'), LOT:find('lot'),
-    ITEM:find('item'), COLOUR:find('colour','color'),
-    QTY:find('qty','quantity'),
-    BAGSIZE:find('bag size','plastic bag size','bag_size'),
-    BAGKG:find('bag qty','bag kg','plastic bag qty','bag weight'),
-    TIMESTAMP:find('timestamp','time','date')
+    DATE:      find('date'),
+    NAME:      find('name','user'),
+    LOT:       find('lot'),
+    SKU:       find('sku code'),     // item sku
+    ITEM:      find('item'),
+    COLOUR:    find('colour','color'),
+    QTY:       find('item qty','qty','quantity'),
+    BAGSIZE:   find('bag size'),
+    BAGKG:     find('bag wt in kg','bag kg'),
+    BAGSKU:    find('sku code') && headers.lastIndexOf(find('sku code')) !== headers.indexOf(find('sku code')) ? headers[headers.lastIndexOf(find('sku code'))] : 'sku code' // fallback
   };
 }
 
-/* ===== LOAD META / MASTERS / RECORDS (for dashboard stats) ===== */
-async function loadMeta(){ const u=new URL(API); u.searchParams.set('action','meta'); const r=await fetch(u); const j=await r.json(); metaHeaders=j.headers||[]; headerMap=buildHeaderMap(metaHeaders); }
+/* ===== LOAD MASTERS ===== */
 async function loadMasters(){
-  const u=new URL(API); u.searchParams.set('action','masters'); const r=await fetch(u); const j=await r.json(); const m=j.masters||{};
-  const keyBy=pred=>Object.keys(m).find(k=>pred(k.toLowerCase()));
-  masters.items=(m[keyBy(k=>k.includes('item'))]||[]).filter(Boolean);
-  masters.colours=(m[keyBy(k=>k.includes('colour')||k.includes('color'))]||[]).filter(Boolean);
-  masters.users=(m[keyBy(k=>k.includes('user'))]||[]).filter(Boolean);
-  const sizes=(m[keyBy(k=>k.includes('bag')&&k.includes('size'))]||[]), weights=(m[keyBy(k=>k.includes('bag')&&(k.includes('kg')||k.includes('weight')||k.includes('qty')))]||[]);
-  masters.bagPairs=sizes.map((s,i)=>({size:s, weight:Number(weights[i]||0)}));
-  // fill selects
-  fillSel('fUser', masters.users); fillSel('fItem', masters.items); fillSel('fColour', masters.colours); fillSelPairs('fBag', masters.bagPairs);
+  const u=new URL(API); u.searchParams.set('action','masters');
+  const r=await fetch(u); const j=await r.json();
+  masters.items = (j.masters?.items||[]); 
+  masters.colours = (j.masters?.colours||[]);
+  masters.users = (j.masters?.users||[]);
+  bagPairs = j.bagPairs || [];
+  itemToSku = j.itemToSku || {};
+  itemBagMap = j.bagMap || {};
+  sizeToSku = j.sizeToSku || {};
+
+  fillSel('fUser', masters.users);
+  fillSel('fItem', masters.items);
+  fillSel('fColour', masters.colours);
+  fillSelPairs('fBag', bagPairs);
 }
-async function loadRecords(){
-  const u=new URL(API); u.searchParams.set('action','list'); const r=await fetch(u); const j=await r.json(); records=j.records||[]; updateSummary();
+
+/* ===== LOAD META + for dashboard quick stats ===== */
+async function loadMeta(){
+  const u=new URL(API); u.searchParams.set('action','meta');
+  const r=await fetch(u); const j=await r.json();
+  metaHeaders = j.headers || []; H = buildHeaderMap(metaHeaders);
 }
-function updateSummary(){
-  const H=headerMap;
-  byId('statTotal').textContent = records.length;
-  const getYMD=r=>{ const k=H.TIMESTAMP; if(!k) return ''; const v=r[k]; if(!v) return ''; const d=new Date(v); if(isNaN(d)) return ''; return d.toISOString().slice(0,10); };
-  const today=new Date().toISOString().slice(0,10);
-  byId('statToday').textContent = records.filter(r=> getYMD(r)===today).length;
-  let sum=0; if(H.QTY) records.forEach(r=> sum += Number(r[H.QTY]||0)); byId('statQty').textContent = sum;
+
+/* ===== DASHBOARD COUNTS ===== */
+async function loadCounts(){
+  const u=new URL(API); u.searchParams.set('action','list');
+  const r=await fetch(u); const j=await r.json();
+  const recs=j.records||[];
+  byId('statTotal').textContent = recs.length;
+  const t=todayYMD();
+  const dateKey=H.DATE;
+  byId('statToday').textContent = dateKey ? recs.filter(x=>{
+    const d=x[dateKey]; if(!d) return false;
+    const iso=(new Date(d)).toISOString().slice(0,10);
+    return iso===t;
+  }).length : '—';
+  let sum=0; if (H.QTY) recs.forEach(x=> sum+= Number(x[H.QTY]||0));
+  byId('statQty').textContent = sum;
   byId('statSync').textContent = new Date().toLocaleTimeString();
 }
 
-/* ===== UI HELPERS ===== */
+/* ===== UI helpers ===== */
 function fillSel(id, arr){ const el=byId(id); el.innerHTML=''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); }); }
-function fillSelPairs(id, arr){ const el=byId(id); el.innerHTML=''; arr.forEach(p=>{ const o=document.createElement('option'); o.value=p.size; o.textContent=p.size; o.dataset.weight=p.weight; el.appendChild(o); }); }
+function fillSelPairs(id, arr){ const el=byId(id); el.innerHTML=''; arr.forEach(p=>{ const o=document.createElement('option'); o.value=p.size; o.textContent=p.size; o.dataset.weight=p.weight; o.dataset.sku=p.sku||''; el.appendChild(o); }); }
 
 /* ===== FORM LOGIC ===== */
-function calcBagKg(){ const qty=Number(byId('fQty').value||0); const w=Number((byId('fBag').selectedOptions[0]?.dataset.weight)||0); byId('fBagKg').value=((qty*w)/1000).toFixed(2); }
-byId('fQty').addEventListener('input', calcBagKg); byId('fBag').addEventListener('change', calcBagKg);
+function calcBagKg(){
+  const qty=Number(byId('fQty').value||0);
+  const w=Number((byId('fBag').selectedOptions[0]?.dataset.weight)||0); // grams
+  byId('fBagKg').value = ((qty*w)/1000).toFixed(2);
+}
+byId('fQty').addEventListener('input', calcBagKg);
+byId('fBag').addEventListener('change', calcBagKg);
+
+/* Searchable selects */
+function filterSel(selectId, src, q){ const el=byId(selectId); const list=src.filter(x=>String(x).toLowerCase().includes((q||'').toLowerCase())); el.innerHTML=''; list.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); }); }
 byId('fItemSearch').addEventListener('input', e=> filterSel('fItem', masters.items, e.target.value));
 byId('fColourSearch').addEventListener('input', e=> filterSel('fColour', masters.colours, e.target.value));
-function filterSel(selectId, src, q){ const el=byId(selectId); const list=src.filter(x=>String(x).toLowerCase().includes((q||'').toLowerCase())); el.innerHTML=''; list.forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; el.appendChild(o); }); }
 
-function recFromForm(){
+/* Item change → auto default bag + auto item SKU (for saving) */
+byId('fItem').addEventListener('change', ()=>{
+  const it=byId('fItem').value;
+  const def=itemBagMap[it];
+  if (def){
+    const opt = Array.from(byId('fBag').options).find(o=> String(o.value)===String(def));
+    if (opt) byId('fBag').value = opt.value;
+  }
   calcBagKg();
-  const H=headerMap, r={};
-  if(H.USER) r[H.USER]=byId('fUser').value;
-  if(H.LOT) r[H.LOT]=byId('fLot').value;
-  if(H.ITEM) r[H.ITEM]=byId('fItem').value;
-  if(H.COLOUR) r[H.COLOUR]=byId('fColour').value;
-  if(H.QTY) r[H.QTY]=Number(byId('fQty').value||0);
-  if(H.BAGSIZE) r[H.BAGSIZE]=byId('fBag').value;
-  if(H.BAGKG) r[H.BAGKG]=Number(byId('fBagKg').value||0);
-  return r;
-}
-function clearForm(){ ['fLot','fQty','fBagKg'].forEach(id=> byId(id).value=''); }
-
-function renderBatch(){
-  const H=headerMap, el=byId('batchList'); el.innerHTML='';
-  batch.forEach((r,i)=>{
-    const item=r[H.ITEM]||'', colour=r[H.COLOUR]||'', qty=r[H.QTY]||0, user=r[H.USER]||'';
-    const div=document.createElement('div');
-    div.className='glass dark rounded-2xl p-3 flex items-center justify-between gap-3';
-    div.innerHTML=`<div><div class="font-semibold">${item} <span class="opacity-60">${colour}</span></div><div class="text-xs opacity-70">User: ${user} • Qty: ${qty}</div></div><button class="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm" data-i="${i}">Remove</button>`;
-    div.querySelector('button').addEventListener('click',()=>{ batch.splice(i,1); renderBatch(); });
-    el.appendChild(div);
-  });
-}
-
-byId('btnAddRow').addEventListener('click', ()=>{
-  const H=headerMap, r=recFromForm();
-  if(!r[H.USER] || !r[H.ITEM] || !r[H.COLOUR] || !r[H.QTY]){ toast('Fill User/Item/Colour/Qty', false); return; }
-  batch.push(r); renderBatch(); clearForm();
-});
-byId('btnResetRow').addEventListener('click', clearForm);
-byId('btnResetBatch').addEventListener('click', ()=>{ batch=[]; renderBatch(); });
-byId('btnSubmitBatch').addEventListener('click', async ()=>{
-  if(batch.length===0){ toast('Nothing to submit', false); return; }
-  const res=await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'batchCreate', records:batch})});
-  const j=await res.json(); toast('Saved '+(j.ids?j.ids.length:batch.length)+' rows');
-  batch=[]; renderBatch(); await loadRecords();
 });
 
-/* ===== INIT ===== */
-(async function init(){ await loadMeta(); await loadMasters(); await loadRecords(); })();
+/* Submit */
+byId('btnSubmit').addEventListener('click', async ()=>{
+  if (!H.DATE || !H.NAME || !H.LOT || !H.ITEM || !H.COLOUR || !H.QTY || !H.BAGSIZE || !H.BAGKG || !H.SKU || !H.BAGSKU){
+    toast('Sheet headers not detected properly', false); return;
+  }
+  // build record keyed by EXACT sheet headers
+  const item = byId('fItem').value;
+  const bagSize = byId('fBag').value;
+
+  const rec = {};
+  rec[H.DATE]    = byId('fDate').value ? new Date(byId('fDate').value) : new Date();
+  rec[H.NAME]    = byId('fUser').value;
+  rec[H.LOT]     = byId('fLot').value;
+  rec[H.SKU]     = itemToSku[item] || '';           // item SKU
+  rec[H.ITEM]    = item;
+  rec[H.COLOUR]  = byId('fColour').value;
+  rec[H.QTY]     = Number(byId('fQty').value||0);
+  rec[H.BAGSIZE] = bagSize;
+  rec[H.BAGKG]   = Number(byId('fBagKg').value||0);
+  // bag SKU from size (fallback from select data-sku)
+  rec[H.BAGSKU]  = sizeToSku[bagSize] || (byId('fBag').selectedOptions[0]?.dataset.sku) || '';
+
+  const res = await fetch(API,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'create', record: rec }) });
+  const j = await res.json();
+  if (j.error){ toast('Save failed', false); return; }
+  toast('Saved');
+  byId('fLot').value=''; byId('fQty').value=''; byId('fBagKg').value='';
+  await loadCounts();
+});
+
+/* Clear */
+byId('btnClear').addEventListener('click', ()=>{
+  ['fDate','fLot','fQty','fBagKg'].forEach(id=> byId(id).value='');
+});
+
+/* INIT */
+(async function init(){
+  byId('fDate').value = todayYMD();
+  await loadMeta();
+  await loadMasters();
+  await loadCounts();
+})();
 </script>
 </body>
 </html>
